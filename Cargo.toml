@@ -1,0 +1,32 @@
+[package]
+name = "gsd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+env_logger = "0.10"
+futures-util = "0.3"
+log = "0.4"
+mimalloc = { version = "0.1", default-features = false }
+percent-encoding = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.7", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "macros",
+    "uuid",
+    "migrate",
+] }
+strum = "0.25"
+strum_macros = "0.25"
+thiserror = "1"
+tokio = { version = "1.33", features = ["macros", "rt-multi-thread"] }
+uuid = { version = "1", features = ["serde", "v4"] }
+
+# Taken from:
+# https://github.com/TechEmpower/FrameworkBenchmarks/blob/93b24acdfba67b7989909eb6313674c5288fd945/frameworks/Rust/axum/Cargo.toml#L53
+[profile.release]
+codegen-units = 1
+lto = true

@@ -1,21 +1,5 @@
 use serde::Serialize;
 use strum_macros::{Display, EnumString};
-use uuid::Uuid;
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Story {
-    pub story_id: Uuid,
-    pub name: String,
-    pub owner: String,
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct Task {
-    pub task_id: Uuid,
-    pub story_id: Uuid,
-    pub name: String,
-    pub status: Status,
-}
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, EnumString, Display, Serialize)]
 #[strum(serialize_all = "snake_case")]

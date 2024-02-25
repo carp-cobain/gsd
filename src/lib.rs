@@ -7,10 +7,9 @@ use serde::Serialize;
 
 pub mod api;
 pub mod config;
-pub mod dto;
-pub mod entity;
+pub mod domain;
 pub mod repo;
-pub mod validate;
+pub mod util;
 
 /// Project level error type
 #[derive(thiserror::Error, Debug, Serialize)]

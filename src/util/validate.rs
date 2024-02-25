@@ -14,12 +14,12 @@ impl Validate {
         let value = value.trim().to_string();
         if value.is_empty() {
             return Err(Error::InvalidArgument {
-                message: format!("string is empty"),
+                message: String::from("string is empty"),
             });
         }
         if value.len() > Validate::MAX_STR_LEN {
             return Err(Error::InvalidArgument {
-                message: format!("string is too long"),
+                message: String::from("string is too long"),
             });
         }
         Ok(value)

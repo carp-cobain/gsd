@@ -14,6 +14,7 @@ pub struct Config {
     pub db_password: String,
     pub db_database: String,
     pub db_schema: String,
+    pub url_base: String,
 }
 
 /// Default for config just calls basic constructor
@@ -45,6 +46,9 @@ impl Config {
         let db_database = env::var("DB_NAME").expect("DB_NAME not set");
         let db_schema = env::var("DB_SCHEMA").expect("DB_SCHEMA not set");
 
+        // service URL
+        let url_base = env::var("API_URL_BASE").unwrap_or("/gsd/api/v1".into());
+
         // Create config
         Self {
             listen_addr,
@@ -55,6 +59,7 @@ impl Config {
             db_password,
             db_database,
             db_schema,
+            url_base,
         }
     }
 }

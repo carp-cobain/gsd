@@ -1,13 +1,12 @@
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
-use gsd::{api, config::Config, repo::Repo};
+use gsd::{api::Service, config::Config, repo::Repo};
 
 use axum::Router;
 use sqlx::migrate::Migrator;
-use std::error::Error;
-use std::sync::Arc;
+use std::{error::Error, sync::Arc};
 use tokio::net::TcpListener;
+
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 // Embed migrations into the server binary.
 pub static MIGRATOR: Migrator = sqlx::migrate!();
@@ -33,10 +32,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Arc up connection pool for async sharing across tasks
     let pool = Arc::new(pool);
 
-    // Create api
+    // Set up service
     let repo = Repo::new(Arc::clone(&pool));
-    let api = api::routes(Arc::new(repo));
-    let router = Router::new().nest("/gsd/api/v1", api);
+    let service = Service::new(Arc::new(repo));
+
+    // Set up API
+    let path = config.url_base;
+    let routes = service.routes();
+    let router = Router::new().nest(&path, routes);
 
     // Start server
     log::info!("Server listening on {}", config.listen_addr);

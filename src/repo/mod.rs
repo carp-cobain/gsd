@@ -1,9 +1,12 @@
-use crate::domain::{Status, Story, Task};
-use crate::Error;
-use sqlx::postgres::{PgPool, PgRow};
-use sqlx::{FromRow, Row};
-use std::str::FromStr;
-use std::sync::Arc;
+use crate::{
+    domain::{Status, Story, Task},
+    Error,
+};
+use sqlx::{
+    postgres::{PgPool, PgRow},
+    FromRow, Row,
+};
+use std::{str::FromStr, sync::Arc};
 
 // Define related queries in child modules
 mod story;

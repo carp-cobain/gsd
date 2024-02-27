@@ -24,6 +24,7 @@ strum_macros = "0.25"
 thiserror = "1"
 tokio = { version = "1.33", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1", features = ["serde", "v4"] }
+validator = { version = "0.16", features = ["derive"] }
 
 # Taken from:
 # https://github.com/TechEmpower/FrameworkBenchmarks/blob/93b24acdfba67b7989909eb6313674c5288fd945/frameworks/Rust/axum/Cargo.toml#L53

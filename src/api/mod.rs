@@ -1,42 +1,41 @@
-use crate::repo::Repo;
 use axum::{
     routing::{get, post},
     Router,
 };
 use std::sync::Arc;
 
-use story::{create_story, delete_story, get_stories, get_story, patch_story};
-use task::{create_task, delete_task, get_task, get_tasks, patch_task};
-
+mod ctx;
 mod dto;
 mod story;
 mod task;
 
+pub use ctx::ApiCtx;
+
 /// The top-level GSD web-service
 pub struct Service {
-    repo: Arc<Repo>,
+    ctx: Arc<ApiCtx>,
 }
 
 impl Service {
     /// Create a new service
-    pub fn new(repo: Arc<Repo>) -> Self {
-        Self { repo }
+    pub fn new(ctx: Arc<ApiCtx>) -> Self {
+        Self { ctx }
     }
 
     /// Define API routes, mapping paths to handlers.
     pub fn routes(self) -> Router {
         Router::new()
-            .route("/stories", get(get_stories).post(create_story))
+            .route("/stories", get(story::list).post(story::create))
             .route(
                 "/stories/:id",
-                get(get_story).delete(delete_story).patch(patch_story),
+                get(story::get).delete(story::delete).patch(story::patch),
             )
-            .route("/stories/:id/tasks", get(get_tasks))
-            .route("/tasks", post(create_task))
+            .route("/stories/:id/tasks", get(task::list))
+            .route("/tasks", post(task::create))
             .route(
                 "/tasks/:id",
-                get(get_task).delete(delete_task).patch(patch_task),
+                get(task::get).delete(task::delete).patch(task::patch),
             )
-            .with_state(self.repo)
+            .with_state(self.ctx)
     }
 }

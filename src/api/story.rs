@@ -1,7 +1,9 @@
 use crate::{
-    api::dto::{CreateStoryBody, GetStoriesParams, PatchStoryBody},
+    api::{
+        dto::{CreateStoryBody, GetStoriesParams, PatchStoryBody},
+        ApiCtx,
+    },
     domain::Story,
-    repo::Repo,
     Result,
 };
 use axum::{
@@ -19,76 +21,77 @@ use validator::Validate;
 const BACKLOG: &str = "backlog";
 
 /// Get story by id
-pub(crate) async fn get_story(
+pub(crate) async fn get(
     Path(story_id): Path<Uuid>,
-    State(repo): State<Arc<Repo>>,
+    State(ctx): State<Arc<ApiCtx>>,
 ) -> Result<Json<Story>> {
-    log::debug!("get_story: {}", story_id);
+    log::debug!("get: {}", story_id);
 
-    let story = repo.select_story(story_id).await?;
+    let story = ctx.repo.select_story(story_id).await?;
     Ok(Json(story))
 }
 
 /// Get stories by owner
-pub(crate) async fn get_stories(
+pub(crate) async fn list(
     params: Option<Query<GetStoriesParams>>,
-    State(repo): State<Arc<Repo>>,
+    State(ctx): State<Arc<ApiCtx>>,
 ) -> Result<Json<Vec<Story>>> {
-    log::debug!("get_stories: {:?}", params);
+    log::debug!("list: {:?}", params);
 
     let Query(params) = params.unwrap_or_default();
     let owner = params.owner.unwrap_or(BACKLOG.into());
 
-    let stories = repo.select_stories(owner).await?;
+    let stories = ctx.repo.select_stories(owner).await?;
     Ok(Json(stories))
 }
 
 /// Create a new story for an owner
-pub(crate) async fn create_story(
-    State(repo): State<Arc<Repo>>,
+pub(crate) async fn create(
+    State(ctx): State<Arc<ApiCtx>>,
     Json(body): Json<CreateStoryBody>,
 ) -> Result<impl IntoResponse> {
-    log::debug!("create_story: {:?}", body);
+    log::debug!("create: {:?}", body);
 
     body.validate()?;
 
     let owner = body.owner.unwrap_or(BACKLOG.into());
-    let story = repo.insert_story(body.name, owner).await?;
+    let story = ctx.repo.insert_story(body.name, owner).await?;
 
     Ok((StatusCode::CREATED, Json(story)))
 }
 
 /// Update a story name and/or owner.
-pub(crate) async fn patch_story(
+pub(crate) async fn patch(
     Path(story_id): Path<Uuid>,
-    State(repo): State<Arc<Repo>>,
+    State(ctx): State<Arc<ApiCtx>>,
     Json(body): Json<PatchStoryBody>,
 ) -> Result<Json<Story>> {
-    log::debug!("patch_story: {:?}", body);
+    log::debug!("patch: {:?}", body);
 
     // Validate
-    let story = repo.select_story(story_id).await?;
     body.validate()?;
+    let story = ctx.repo.select_story(story_id).await?;
 
     // Unwrap
     let name = body.name.unwrap_or(story.name);
     let owner = body.owner.unwrap_or(story.owner);
 
     // Update
-    let story = repo.update_story(story_id, name, owner).await?;
+    let story = ctx.repo.update_story(story_id, name, owner).await?;
     Ok(Json(story))
 }
 
 /// Delete a story by id
-pub(crate) async fn delete_story(
+pub(crate) async fn delete(
     Path(story_id): Path<Uuid>,
-    State(repo): State<Arc<Repo>>,
+    State(ctx): State<Arc<ApiCtx>>,
 ) -> StatusCode {
-    log::debug!("delete_story: {}", story_id);
+    log::debug!("delete: {}", story_id);
 
-    let result = repo
+    let result = ctx
+        .repo
         .select_story(story_id)
-        .and_then(|story| repo.delete_story(story.story_id))
+        .and_then(|_| ctx.repo.delete_story(story_id))
         .await;
 
     match result {

@@ -11,7 +11,7 @@ use validator::{ValidationError, ValidationErrors};
 #[derive(thiserror::Error, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Error {
-    #[error("invalid argument")]
+    #[error("invalid arguments")]
     InvalidArguments {
         field_errors: HashMap<String, String>,
     },
@@ -50,7 +50,7 @@ impl From<ValidationErrors> for Error {
         Error::InvalidArguments {
             field_errors: errors
                 .field_errors()
-                .into_iter()
+                .iter()
                 .map(|pair| (pair.0.to_string(), summarize(pair.1)))
                 .collect(),
         }

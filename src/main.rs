@@ -1,4 +1,8 @@
-use gsd::{api::Service, config::Config, repo::Repo};
+use gsd::{
+    api::{ApiCtx, Service},
+    config::Config,
+    repo::Repo,
+};
 
 use axum::Router;
 use sqlx::migrate::Migrator;
@@ -34,12 +38,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Set up service
     let repo = Repo::new(Arc::clone(&pool));
-    let service = Service::new(Arc::new(repo));
+    let ctx = ApiCtx::new(Arc::new(repo));
+    let service = Service::new(Arc::new(ctx));
 
     // Set up API
-    let path = config.url_base;
     let routes = service.routes();
-    let router = Router::new().nest(&path, routes);
+    let router = Router::new().nest(&config.url_base, routes);
 
     // Start server
     log::info!("Server listening on {}", config.listen_addr);

@@ -11,12 +11,12 @@ mod task;
 
 pub use ctx::ApiCtx;
 
-/// The top-level GSD web-service
-pub struct Service {
+/// The top-level GSD web-service API
+pub struct Api {
     ctx: Arc<ApiCtx>,
 }
 
-impl Service {
+impl Api {
     /// Create a new service
     pub fn new(ctx: Arc<ApiCtx>) -> Self {
         Self { ctx }

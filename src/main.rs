@@ -1,5 +1,5 @@
 use gsd::{
-    api::{ApiCtx, Service},
+    api::{Api, ApiCtx},
     config::Config,
     repo::Repo,
 };
@@ -36,14 +36,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Arc up connection pool for async sharing across tasks
     let pool = Arc::new(pool);
 
-    // Set up service
+    // Set up API context
     let repo = Repo::new(Arc::clone(&pool));
     let ctx = ApiCtx::new(Arc::new(repo));
-    let service = Service::new(Arc::new(ctx));
 
     // Set up API
-    let routes = service.routes();
-    let router = Router::new().nest(&config.url_base, routes);
+    let api = Api::new(Arc::new(ctx));
+    let router = Router::new().nest(&config.url_base, api.routes());
 
     // Start server
     log::info!("Server listening on {}", config.listen_addr);

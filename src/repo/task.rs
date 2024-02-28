@@ -5,8 +5,30 @@ use crate::{
 };
 
 use futures_util::TryStreamExt;
-use sqlx::FromRow;
+use sqlx::{postgres::PgRow, FromRow, Row};
+use std::str::FromStr;
 use uuid::Uuid;
+
+impl FromRow<'_, PgRow> for Task {
+    fn from_row(row: &PgRow) -> std::result::Result<Self, sqlx::Error> {
+        // Extract column values
+        let task_id = row.try_get("id")?;
+        let story_id = row.try_get("story_id")?;
+        let name = row.try_get("name")?;
+        let status: String = row.try_get("status")?;
+
+        // Convert to enum type
+        let status = Status::from_str(&status).map_err(|err| sqlx::Error::Decode(Box::new(err)))?;
+
+        // Task
+        Ok(Self {
+            task_id,
+            story_id,
+            name,
+            status,
+        })
+    }
+}
 
 impl Repo {
     /// Get a task by id

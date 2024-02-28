@@ -1,8 +1,18 @@
 use crate::{domain::Story, repo::Repo, Error, Result};
 
 use futures_util::TryStreamExt;
-use sqlx::FromRow;
+use sqlx::{postgres::PgRow, FromRow, Row};
 use uuid::Uuid;
+
+impl FromRow<'_, PgRow> for Story {
+    fn from_row(row: &PgRow) -> std::result::Result<Self, sqlx::Error> {
+        Ok(Self {
+            story_id: row.try_get("id")?,
+            name: row.try_get("name")?,
+            owner: row.try_get("owner")?,
+        })
+    }
+}
 
 impl Repo {
     /// Get a story by id

@@ -20,14 +20,14 @@ use validator::Validate;
 
 /// API routes for stories
 pub fn routes() -> Router<Arc<ApiCtx>> {
-    let tasks_id = get(task).delete(delete_task).patch(update_task);
-    Router::new()
-        .route("/tasks", post(create_task))
-        .route("/tasks/:id", tasks_id)
+    Router::new().route("/tasks", post(create_task)).route(
+        "/tasks/:id",
+        get(get_task).delete(delete_task).patch(update_task),
+    )
 }
 
 /// Get task by id
-async fn task(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Task>> {
+async fn get_task(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Task>> {
     log::debug!("task: {}", id);
     let task = ctx.repo.select_task(id).await?;
     Ok(Json(task))
@@ -65,7 +65,7 @@ async fn update_task(
     body.validate()?;
     let task = ctx.repo.select_task(id).await?;
 
-    // Unwrap
+    // Unwrap updates (or default to existing values)
     let name = body.name.unwrap_or(task.name);
     let status = match body.status {
         Some(s) => Status::from_str(&s).unwrap_or(task.status),

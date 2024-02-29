@@ -23,22 +23,24 @@ const BACKLOG: &str = "backlog";
 
 /// API routes for stories
 pub fn routes() -> Router<Arc<ApiCtx>> {
-    let stories_id = get(story).delete(delete_story).patch(update_story);
     Router::new()
-        .route("/stories", get(stories).post(create_story))
-        .route("/stories/:id", stories_id)
-        .route("/stories/:id/tasks", get(tasks))
+        .route("/stories", get(get_stories).post(create_story))
+        .route("/stories/:id/tasks", get(get_tasks))
+        .route(
+            "/stories/:id",
+            get(get_story).delete(delete_story).patch(update_story),
+        )
 }
 
 /// Get story by id
-async fn story(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Story>> {
+async fn get_story(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Story>> {
     log::debug!("story: {}", id);
     let story = ctx.repo.select_story(id).await?;
     Ok(Json(story))
 }
 
 /// Get stories by owner
-async fn stories(
+async fn get_stories(
     params: Option<Query<GetStoriesParams>>,
     State(ctx): State<Arc<ApiCtx>>,
 ) -> Result<Json<Vec<Story>>> {
@@ -48,12 +50,14 @@ async fn stories(
     let owner = params.owner.unwrap_or(BACKLOG.into());
 
     let stories = ctx.repo.select_stories(owner).await?;
-
     Ok(Json(stories))
 }
 
 /// Get tasks for a story
-async fn tasks(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Vec<Task>>> {
+async fn get_tasks(
+    Path(id): Path<Uuid>,
+    State(ctx): State<Arc<ApiCtx>>,
+) -> Result<Json<Vec<Task>>> {
     log::debug!("tasks: story_id = {}", id);
     let tasks = ctx.repo.select_tasks(id).await?;
     Ok(Json(tasks))
@@ -72,7 +76,6 @@ async fn create_story(
     let story = ctx.repo.insert_story(body.name, owner).await?;
 
     let result = (StatusCode::CREATED, Json(story));
-
     Ok(result)
 }
 
@@ -88,13 +91,12 @@ async fn update_story(
     body.validate()?;
     let story = ctx.repo.select_story(id).await?;
 
-    // Unwrap
+    // Unwrap updates (or default to existing values)
     let name = body.name.unwrap_or(story.name);
     let owner = body.owner.unwrap_or(story.owner);
 
     // Update
     let story = ctx.repo.update_story(id, name, owner).await?;
-
     Ok(Json(story))
 }
 

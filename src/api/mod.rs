@@ -1,7 +1,4 @@
-use axum::{
-    routing::{get, post},
-    Router,
-};
+use axum::Router;
 use std::sync::Arc;
 
 mod ctx;
@@ -24,18 +21,6 @@ impl Api {
 
     /// Define API routes, mapping paths to handlers.
     pub fn routes(self) -> Router {
-        Router::new()
-            .route("/stories", get(story::list).post(story::create))
-            .route(
-                "/stories/:id",
-                get(story::get).delete(story::delete).patch(story::patch),
-            )
-            .route("/stories/:id/tasks", get(task::list))
-            .route("/tasks", post(task::create))
-            .route(
-                "/tasks/:id",
-                get(task::get).delete(task::delete).patch(task::patch),
-            )
-            .with_state(self.ctx)
+        story::routes().merge(task::routes()).with_state(self.ctx)
     }
 }

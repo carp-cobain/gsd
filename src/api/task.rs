@@ -10,41 +10,35 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
+    routing::{get, post},
+    Json, Router,
 };
 use futures_util::TryFutureExt;
 use std::{str::FromStr, sync::Arc};
 use uuid::Uuid;
 use validator::Validate;
 
-/// Get task by id
-pub(crate) async fn get(
-    Path(task_id): Path<Uuid>,
-    State(ctx): State<Arc<ApiCtx>>,
-) -> Result<Json<Task>> {
-    log::debug!("get: {}", task_id);
+/// API routes for stories
+pub fn routes() -> Router<Arc<ApiCtx>> {
+    let tasks_id = get(task).delete(delete_task).patch(update_task);
+    Router::new()
+        .route("/tasks", post(create_task))
+        .route("/tasks/:id", tasks_id)
+}
 
-    let task = ctx.repo.select_task(task_id).await?;
+/// Get task by id
+async fn task(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Task>> {
+    log::debug!("task: {}", id);
+    let task = ctx.repo.select_task(id).await?;
     Ok(Json(task))
 }
 
-/// Get tasks for a story
-pub(crate) async fn list(
-    Path(story_id): Path<Uuid>,
-    State(ctx): State<Arc<ApiCtx>>,
-) -> Result<Json<Vec<Task>>> {
-    log::debug!("list: {}", story_id);
-
-    let tasks = ctx.repo.select_tasks(story_id).await?;
-    Ok(Json(tasks))
-}
-
 /// Create a task new task
-pub(crate) async fn create(
+async fn create_task(
     State(ctx): State<Arc<ApiCtx>>,
     Json(body): Json<CreateTaskBody>,
 ) -> Result<impl IntoResponse> {
-    log::debug!("create: {:?}", body);
+    log::debug!("create_task: {:?}", body);
 
     body.validate()?;
 
@@ -54,44 +48,44 @@ pub(crate) async fn create(
         .and_then(|_| ctx.repo.insert_task(body.story_id, body.name))
         .await?;
 
-    Ok((StatusCode::CREATED, Json(task)))
+    let result = (StatusCode::CREATED, Json(task));
+
+    Ok(result)
 }
 
 /// Update a task name and/or status.
-pub(crate) async fn patch(
-    Path(task_id): Path<Uuid>,
+async fn update_task(
+    Path(id): Path<Uuid>,
     State(ctx): State<Arc<ApiCtx>>,
     Json(body): Json<PatchTaskBody>,
 ) -> Result<Json<Task>> {
-    log::debug!("patch: {:?}", body);
+    log::debug!("update_task: {}, {:?}", id, body);
 
     // Validate
     body.validate()?;
-    let task = ctx.repo.select_task(task_id).await?;
+    let task = ctx.repo.select_task(id).await?;
 
     // Unwrap
     let name = body.name.unwrap_or(task.name);
     let status = match body.status {
-        Some(s) => Status::from_str(&s).unwrap(), // Already validated above
+        Some(s) => Status::from_str(&s).unwrap_or(task.status),
         None => task.status,
     };
 
     // Update
-    let task = ctx.repo.update_task(task_id, name, status).await?;
+    let task = ctx.repo.update_task(id, name, status).await?;
+
     Ok(Json(task))
 }
 
 /// Delete a task by id
-pub(crate) async fn delete(
-    Path(task_id): Path<Uuid>,
-    State(ctx): State<Arc<ApiCtx>>,
-) -> StatusCode {
-    log::debug!("delete: {}", task_id);
+async fn delete_task(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> StatusCode {
+    log::debug!("delete_task: {}", id);
 
     let result = ctx
         .repo
-        .select_task(task_id)
-        .and_then(|_| ctx.repo.delete_task(task_id))
+        .select_task(id)
+        .and_then(|_| ctx.repo.delete_task(id))
         .await;
 
     match result {

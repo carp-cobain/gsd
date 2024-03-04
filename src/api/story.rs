@@ -34,8 +34,8 @@ pub fn routes() -> Router<Arc<ApiCtx>> {
 
 /// Get story by id
 async fn get_story(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Story>> {
-    log::debug!("story: {}", id);
-    let story = ctx.repo.select_story(id).await?;
+    log::debug!("get_story: {}", id);
+    let story = ctx.story_repo.fetch(id).await?;
     Ok(Json(story))
 }
 
@@ -44,22 +44,23 @@ async fn get_stories(
     params: Option<Query<GetStoriesParams>>,
     State(ctx): State<Arc<ApiCtx>>,
 ) -> Result<Json<Vec<Story>>> {
-    log::debug!("stories: {:?}", params);
+    log::debug!("get_stories: {:?}", params);
 
     let Query(params) = params.unwrap_or_default();
     let owner = params.owner.unwrap_or(BACKLOG.into());
 
-    let stories = ctx.repo.select_stories(owner).await?;
+    let stories = ctx.story_repo.fetch_all(owner).await?;
     Ok(Json(stories))
 }
 
 /// Get tasks for a story
 async fn get_tasks(
-    Path(id): Path<Uuid>,
+    Path(story_id): Path<Uuid>,
     State(ctx): State<Arc<ApiCtx>>,
 ) -> Result<Json<Vec<Task>>> {
-    log::debug!("tasks: story_id = {}", id);
-    let tasks = ctx.repo.select_tasks(id).await?;
+    log::debug!("get_tasks: story_id = {}", story_id);
+    ctx.story_repo.fetch(story_id).await?;
+    let tasks = ctx.task_repo.fetch_all(story_id).await?;
     Ok(Json(tasks))
 }
 
@@ -73,7 +74,7 @@ async fn create_story(
     body.validate()?;
 
     let owner = body.owner.unwrap_or(BACKLOG.into());
-    let story = ctx.repo.insert_story(body.name, owner).await?;
+    let story = ctx.story_repo.create(body.name, owner).await?;
 
     let result = (StatusCode::CREATED, Json(story));
     Ok(result)
@@ -87,16 +88,12 @@ async fn update_story(
 ) -> Result<Json<Story>> {
     log::debug!("update_story: {}, {:?}", id, body);
 
-    // Validate
     body.validate()?;
-    let story = ctx.repo.select_story(id).await?;
+    let story = ctx.story_repo.fetch(id).await?;
 
-    // Unwrap updates (or default to existing values)
-    let name = body.name.unwrap_or(story.name);
-    let owner = body.owner.unwrap_or(story.owner);
+    let (name, owner) = body.unwrap(story);
+    let story = ctx.story_repo.update(id, name, owner).await?;
 
-    // Update
-    let story = ctx.repo.update_story(id, name, owner).await?;
     Ok(Json(story))
 }
 
@@ -105,9 +102,9 @@ async fn delete_story(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> S
     log::debug!("delete_story: {}", id);
 
     let result = ctx
-        .repo
-        .select_story(id)
-        .and_then(|_| ctx.repo.delete_story(id))
+        .story_repo
+        .fetch(id)
+        .and_then(|_| ctx.story_repo.delete(id))
         .await;
 
     match result {

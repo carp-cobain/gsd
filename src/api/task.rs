@@ -3,7 +3,7 @@ use crate::{
         dto::{CreateTaskBody, PatchTaskBody},
         ApiCtx,
     },
-    domain::{Status, Task},
+    domain::Task,
     Result,
 };
 use axum::{
@@ -14,11 +14,11 @@ use axum::{
     Json, Router,
 };
 use futures_util::TryFutureExt;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;
 
-/// API routes for stories
+/// API routes for tasks
 pub fn routes() -> Router<Arc<ApiCtx>> {
     Router::new().route("/tasks", post(create_task)).route(
         "/tasks/:id",
@@ -28,8 +28,8 @@ pub fn routes() -> Router<Arc<ApiCtx>> {
 
 /// Get task by id
 async fn get_task(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> Result<Json<Task>> {
-    log::debug!("task: {}", id);
-    let task = ctx.repo.select_task(id).await?;
+    log::debug!("get_task: {}", id);
+    let task = ctx.task_repo.fetch(id).await?;
     Ok(Json(task))
 }
 
@@ -43,13 +43,12 @@ async fn create_task(
     body.validate()?;
 
     let task = ctx
-        .repo
-        .select_story(body.story_id)
-        .and_then(|_| ctx.repo.insert_task(body.story_id, body.name))
+        .story_repo
+        .fetch(body.story_id)
+        .and_then(|_| ctx.task_repo.create(body.story_id, body.name))
         .await?;
 
     let result = (StatusCode::CREATED, Json(task));
-
     Ok(result)
 }
 
@@ -61,19 +60,11 @@ async fn update_task(
 ) -> Result<Json<Task>> {
     log::debug!("update_task: {}, {:?}", id, body);
 
-    // Validate
     body.validate()?;
-    let task = ctx.repo.select_task(id).await?;
+    let task = ctx.task_repo.fetch(id).await?;
 
-    // Unwrap updates (or default to existing values)
-    let name = body.name.unwrap_or(task.name);
-    let status = match body.status {
-        Some(s) => Status::from_str(&s).unwrap_or(task.status),
-        None => task.status,
-    };
-
-    // Update
-    let task = ctx.repo.update_task(id, name, status).await?;
+    let (name, status) = body.unwrap(task);
+    let task = ctx.task_repo.update(id, name, status).await?;
 
     Ok(Json(task))
 }
@@ -83,9 +74,9 @@ async fn delete_task(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> St
     log::debug!("delete_task: {}", id);
 
     let result = ctx
-        .repo
-        .select_task(id)
-        .and_then(|_| ctx.repo.delete_task(id))
+        .task_repo
+        .fetch(id)
+        .and_then(|_| ctx.task_repo.delete(id))
         .await;
 
     match result {

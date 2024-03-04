@@ -1,23 +1,44 @@
-use crate::{domain::Story, repo::Repo, Error, Result};
-
+use crate::{domain::Story, Error, Result};
 use futures_util::TryStreamExt;
-use sqlx::{postgres::PgRow, FromRow, Row};
+use sqlx::{
+    postgres::{PgPool, PgRow},
+    FromRow, Row,
+};
+use std::sync::Arc;
 use uuid::Uuid;
 
+/// Map sqlx rows to story domain objects.
 impl FromRow<'_, PgRow> for Story {
     fn from_row(row: &PgRow) -> std::result::Result<Self, sqlx::Error> {
         Ok(Self {
-            story_id: row.try_get("id")?,
+            id: row.try_get("id")?,
             name: row.try_get("name")?,
             owner: row.try_get("owner")?,
         })
     }
 }
 
-impl Repo {
-    /// Get a story by id
-    pub async fn select_story(&self, story_id: Uuid) -> Result<Story> {
-        log::debug!("select_story: {}", story_id);
+/// Concrete story related database logic
+pub struct StoryRepo {
+    db: Arc<PgPool>,
+}
+
+impl StoryRepo {
+    /// Constructor
+    pub fn new(db: Arc<PgPool>) -> Self {
+        Self { db }
+    }
+
+    /// Get a ref to the connection pool.
+    fn db_ref(&self) -> &PgPool {
+        self.db.as_ref()
+    }
+}
+
+impl StoryRepo {
+    /// Select a story by id
+    pub async fn fetch(&self, id: Uuid) -> Result<Story> {
+        log::debug!("fetch: {}", id);
 
         let sql = r#"
             SELECT id, name, owner
@@ -27,21 +48,21 @@ impl Repo {
         "#;
 
         let maybe_story = sqlx::query_as(sql)
-            .bind(story_id)
+            .bind(id)
             .fetch_optional(self.db_ref())
             .await?;
 
         match maybe_story {
             Some(story) => Ok(story),
             None => Err(Error::NotFound {
-                message: format!("story not found: {}", story_id),
+                message: format!("story not found: {}", id),
             }),
         }
     }
 
     /// Select stories for an owner
-    pub async fn select_stories(&self, owner: String) -> Result<Vec<Story>> {
-        log::debug!("select_stories: {}", owner);
+    pub async fn fetch_all(&self, owner: String) -> Result<Vec<Story>> {
+        log::debug!("fetch_all: {}", owner);
 
         let sql = r#"
             SELECT id, name, owner
@@ -62,8 +83,8 @@ impl Repo {
     }
 
     /// Insert a new story
-    pub async fn insert_story(&self, name: String, owner: String) -> Result<Story> {
-        log::debug!("insert_story: {}, {}", name, owner);
+    pub async fn create(&self, name: String, owner: String) -> Result<Story> {
+        log::debug!("create: {}, {}", name, owner);
 
         let sql = r#"
             INSERT INTO stories (name, owner)
@@ -80,21 +101,21 @@ impl Repo {
         Ok(story)
     }
 
-    /// Update story name and owner.
-    pub async fn update_story(&self, story_id: Uuid, name: String, owner: String) -> Result<Story> {
-        log::debug!("update_story: {}, {}, {}", story_id, name, owner);
+    /// Update story name and owner
+    pub async fn update(&self, id: Uuid, name: String, owner: String) -> Result<Story> {
+        log::debug!("update_story: {}, {}, {}", id, name, owner);
 
         let sql = r#"
             UPDATE stories
             SET name = $1, owner = $2, updated_at = now()
-            WHERE id = $3
+            WHERE id = $3 AND deleted_at IS NULL
             RETURNING id, name, owner
         "#;
 
         let story = sqlx::query_as(sql)
             .bind(name)
             .bind(owner)
-            .bind(story_id)
+            .bind(id)
             .fetch_one(self.db_ref())
             .await?;
 
@@ -102,8 +123,8 @@ impl Repo {
     }
 
     /// Delete a story and its tasks by setting the deleted_at timestamp.
-    pub async fn delete_story(&self, story_id: Uuid) -> Result<u64> {
-        log::debug!("delete_story: {}", story_id);
+    pub async fn delete(&self, id: Uuid) -> Result<u64> {
+        log::debug!("delete_story: {}", id);
 
         let mut transaction = self.db.begin().await?;
 
@@ -113,7 +134,7 @@ impl Repo {
             AND deleted_at IS NULL
         "#;
         let delete_tasks_result = sqlx::query(delete_tasks_sql)
-            .bind(story_id)
+            .bind(id)
             .execute(&mut *transaction)
             .await?;
 
@@ -123,7 +144,7 @@ impl Repo {
             AND deleted_at IS NULL
         "#;
         let delete_story_result = sqlx::query(delete_story_sql)
-            .bind(story_id)
+            .bind(id)
             .execute(&mut *transaction)
             .await?;
 

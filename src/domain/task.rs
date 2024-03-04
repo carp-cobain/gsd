@@ -4,8 +4,7 @@ use uuid::Uuid;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Task {
-    #[serde(rename = "id")]
-    pub task_id: Uuid,
+    pub id: Uuid,
     pub story_id: Uuid,
     pub name: String,
     pub status: Status,

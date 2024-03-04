@@ -3,6 +3,9 @@ use std::env;
 // DB related config
 mod database;
 
+// TCP related config
+mod tcp;
+
 /// Configuration settings
 #[derive(Debug)]
 pub struct Config {

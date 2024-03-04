@@ -1,13 +1,12 @@
 use gsd::{
     api::{Api, ApiCtx},
     config::Config,
-    repo::Repo,
+    repo::{StoryRepo, TaskRepo},
 };
 
 use axum::Router;
 use sqlx::migrate::Migrator;
 use std::{error::Error, sync::Arc};
-use tokio::net::TcpListener;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -36,9 +35,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Arc up connection pool for async sharing across tasks
     let pool = Arc::new(pool);
 
+    // Set up repos
+    let story_repo = StoryRepo::new(Arc::clone(&pool));
+    let task_repo = TaskRepo::new(Arc::clone(&pool));
+
     // Set up API context
-    let repo = Repo::new(Arc::clone(&pool));
-    let ctx = ApiCtx::new(Arc::new(repo));
+    let ctx = ApiCtx::new(Arc::new(story_repo), Arc::new(task_repo));
 
     // Set up API
     let api = Api::new(Arc::new(ctx));
@@ -46,8 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Start server
     log::info!("Server listening on {}", config.listen_addr);
-    let listener = TcpListener::bind(config.listen_addr).await?;
-    axum::serve(listener, router).await?;
+    axum::serve(config.tcp_listener(), router).await?;
 
     Ok(())
 }

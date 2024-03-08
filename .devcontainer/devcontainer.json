@@ -1,5 +1,6 @@
 {
   "dockerComposeFile": "docker-compose.yaml",
   "service": "devcontainer",
-  "workspaceFolder": "/${localWorkspaceFolderBasename}"
+  "workspaceFolder": "/${localWorkspaceFolderBasename}",
+  "postCreateCommand": "cat /${localWorkspaceFolderBasename}/scripts/aliases >> $HOME/.bash_aliases"
 }

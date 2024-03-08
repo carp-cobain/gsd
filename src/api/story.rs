@@ -59,8 +59,13 @@ async fn get_tasks(
     State(ctx): State<Arc<ApiCtx>>,
 ) -> Result<Json<Vec<Task>>> {
     log::debug!("get_tasks: story_id = {}", story_id);
-    ctx.story_repo.fetch(story_id).await?;
-    let tasks = ctx.task_repo.fetch_all(story_id).await?;
+
+    let tasks = ctx
+        .story_repo
+        .fetch(story_id)
+        .and_then(|_| ctx.task_repo.fetch_all(story_id))
+        .await?;
+
     Ok(Json(tasks))
 }
 

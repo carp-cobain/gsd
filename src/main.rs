@@ -1,7 +1,6 @@
 use gsd::{
     api::{Api, ApiCtx},
     config::Config,
-    repo::{StoryRepo, TaskRepo},
 };
 
 use axum::Router;
@@ -20,7 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     // Load config
-    let config = Config::default();
+    let config = Arc::new(Config::default());
     log::debug!("Loaded config = {:?}", config);
 
     // Create pg connection pool
@@ -32,17 +31,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     log::info!("Running migrations");
     MIGRATOR.run(&pool).await?;
 
-    // Arc up connection pool for async sharing across tasks
-    let pool = Arc::new(pool);
-
-    // Set up repos
-    let story_repo = StoryRepo::new(Arc::clone(&pool));
-    let task_repo = TaskRepo::new(Arc::clone(&pool));
-
-    // Set up API context
-    let ctx = ApiCtx::new(Arc::new(story_repo), Arc::new(task_repo));
-
     // Set up API
+    let ctx = ApiCtx::new(Arc::clone(&config), Arc::new(pool));
     let api = Api::new(Arc::new(ctx));
     let router = Router::new().nest(&config.url_base, api.routes());
 

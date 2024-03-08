@@ -5,10 +5,10 @@ use uuid::Uuid;
 use validator::{Validate, ValidationError};
 
 // Min string length bytes
-const MIN_LEN: i32 = 1;
+const MIN_LEN: u64 = 1;
 
 // Max string length bytes
-const MAX_LEN: i32 = 100;
+const MAX_LEN: u64 = 100;
 
 // The query parameters for getting stories
 #[derive(Debug, Deserialize, Default)]
@@ -73,9 +73,12 @@ impl PatchStoryBody {
 }
 
 /// Custom status validation function
-fn validate_status(status: &str) -> Result<(), ValidationError> {
-    match Status::from_str(status) {
-        Err(_) => Err(ValidationError::new("invalid_status")),
-        Ok(_) => Ok(()),
+fn validate_status(status_opt: &Option<String>) -> Result<(), ValidationError> {
+    match status_opt {
+        None => Ok(()),
+        Some(status) => match Status::from_str(status) {
+            Err(_) => Err(ValidationError::new("invalid_status")),
+            Ok(_) => Ok(()),
+        },
     }
 }

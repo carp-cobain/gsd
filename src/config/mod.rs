@@ -7,7 +7,7 @@ mod database;
 mod tcp;
 
 /// Configuration settings
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub listen_addr: String,
     pub db_max_connections: u32,

@@ -21,26 +21,50 @@ pub enum Error {
     NotFound { message: String },
 }
 
-/// Map error types to http status codes.
-impl From<Error> for StatusCode {
-    fn from(err: Error) -> Self {
-        match err {
-            Error::NotFound { .. } => StatusCode::NOT_FOUND,
-            Error::InvalidArguments { .. } => StatusCode::BAD_REQUEST,
-            Error::Internal { message } => {
-                log::error!("internal server error: {}", message);
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-        }
+#[derive(Debug, Serialize)]
+struct ErrorDto {
+    #[serde(rename = "errors")]
+    messages: Vec<String>,
+}
+
+/// Get the http status code for an error.
+fn http_status(err: &Error) -> StatusCode {
+    match err {
+        Error::NotFound { .. } => StatusCode::NOT_FOUND,
+        Error::InvalidArguments { .. } => StatusCode::BAD_REQUEST,
+        Error::Internal { .. } => StatusCode::INTERNAL_SERVER_ERROR,
     }
 }
 
+/// Map error types to http status codes.
+impl From<Error> for StatusCode {
+    fn from(err: Error) -> Self {
+        http_status(&err)
+    }
+}
+
+impl From<Error> for ErrorDto {
+    fn from(err: Error) -> Self {
+        let messages = match err {
+            Error::NotFound { message } => vec![message],
+            Error::Internal { message } => {
+                log::error!("internal error: {}", message);
+                vec![message]
+            }
+            Error::InvalidArguments { field_errors } => field_errors
+                .into_iter()
+                .map(|pair| format!("{}: {}", pair.0, pair.1))
+                .collect(),
+        };
+        ErrorDto { messages }
+    }
+}
 /// Map error into a http response
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        let jval = serde_json::to_value(&self).unwrap_or_default();
-        let status: StatusCode = self.into();
-        (status, Json(jval)).into_response()
+        let status = http_status(&self);
+        let dto: ErrorDto = self.into();
+        (status, Json(dto)).into_response()
     }
 }
 

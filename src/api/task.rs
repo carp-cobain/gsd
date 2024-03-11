@@ -48,8 +48,7 @@ async fn create_task(
         .and_then(|_| ctx.task_repo.create(body.story_id, body.name))
         .await?;
 
-    let result = (StatusCode::CREATED, Json(task));
-    Ok(result)
+    Ok((StatusCode::CREATED, Json(task)))
 }
 
 /// Update a task name and/or status.
@@ -81,6 +80,6 @@ async fn delete_task(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> St
 
     match result {
         Ok(_) => StatusCode::NO_CONTENT,
-        Err(error) => error.into(),
+        Err(error) => StatusCode::from(error),
     }
 }

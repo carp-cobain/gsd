@@ -81,8 +81,7 @@ async fn create_story(
     let owner = body.owner.unwrap_or(BACKLOG.into());
     let story = ctx.story_repo.create(body.name, owner).await?;
 
-    let result = (StatusCode::CREATED, Json(story));
-    Ok(result)
+    Ok((StatusCode::CREATED, Json(story)))
 }
 
 /// Update a story name and/or owner.
@@ -114,6 +113,6 @@ async fn delete_story(Path(id): Path<Uuid>, State(ctx): State<Arc<ApiCtx>>) -> S
 
     match result {
         Ok(_) => StatusCode::NO_CONTENT,
-        Err(error) => error.into(),
+        Err(error) => StatusCode::from(error),
     }
 }

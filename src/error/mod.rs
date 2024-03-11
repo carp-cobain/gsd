@@ -4,7 +4,6 @@ use axum::{
     Json,
 };
 use serde::Serialize;
-use std::collections::HashMap;
 use validator::{ValidationError, ValidationErrors};
 
 /// Project level error type
@@ -12,9 +11,7 @@ use validator::{ValidationError, ValidationErrors};
 #[serde(rename_all = "snake_case")]
 pub enum Error {
     #[error("invalid arguments")]
-    InvalidArguments {
-        field_errors: HashMap<String, String>,
-    },
+    InvalidArguments { messages: Vec<String> },
     #[error("internal error: {message}")]
     Internal { message: String },
     #[error("not found error: {message}")]
@@ -46,15 +43,12 @@ impl From<Error> for StatusCode {
 impl From<Error> for ErrorDto {
     fn from(err: Error) -> Self {
         let messages = match err {
+            Error::InvalidArguments { messages } => messages,
             Error::NotFound { message } => vec![message],
             Error::Internal { message } => {
                 log::error!("internal error: {}", message);
                 vec![message]
             }
-            Error::InvalidArguments { field_errors } => field_errors
-                .into_iter()
-                .map(|pair| format!("{}: {}", pair.0, pair.1))
-                .collect(),
         };
         ErrorDto { messages }
     }
@@ -72,10 +66,10 @@ impl IntoResponse for Error {
 impl From<ValidationErrors> for Error {
     fn from(errors: ValidationErrors) -> Self {
         Error::InvalidArguments {
-            field_errors: errors
+            messages: errors
                 .field_errors()
                 .iter()
-                .map(|pair| (pair.0.to_string(), summarize(pair.1)))
+                .map(|pair| format!("{}: {}", pair.0, summarize(pair.1)))
                 .collect(),
         }
     }

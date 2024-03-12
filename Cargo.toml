@@ -30,6 +30,16 @@ tokio = { version = "1.33", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 validator = { version = "0.17", features = ["derive"] }
 
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = [
+    "precommit-hook",
+    "run-cargo-test",
+    "run-cargo-fmt",
+    "run-cargo-clippy",
+]
+
 [profile.release]
 codegen-units = 1
 lto = true

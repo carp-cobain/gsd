@@ -35,10 +35,7 @@ impl Config {
         let listen_addr = format!("0.0.0.0:{}", port);
 
         // database settings
-        let db_max_connections = env::var("DB_MAX_CONNECTIONS")
-            .unwrap_or("10".to_owned())
-            .parse()
-            .expect("DB_MAX_CONNECTIONS could not be parsed");
+        let db_max_connections = 10u32.max((num_cpus::get() * 2 + 1) as u32);
         let db_host = env::var("DB_HOST").expect("DB_HOST not set");
         let db_port = env::var("DB_PORT")
             .unwrap_or("5432".to_owned())

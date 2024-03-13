@@ -673,6 +673,7 @@ dependencies = [
  "futures-util",
  "log",
  "mimalloc",
+ "num_cpus",
  "percent-encoding",
  "serde",
  "serde_json",

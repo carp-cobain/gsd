@@ -48,4 +48,4 @@ testcontainers-modules = { version = "0.3", features = ["postgres"] }
 
 [profile.release]
 codegen-units = 1
-lto = true
+lto = 'thin'

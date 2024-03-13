@@ -4,6 +4,7 @@ use gsd::{
 };
 
 use axum::Router;
+use dotenv::dotenv;
 use sqlx::migrate::Migrator;
 use std::{error::Error, sync::Arc};
 
@@ -15,7 +16,8 @@ pub static MIGRATOR: Migrator = sqlx::migrate!();
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // Init logging
+    // Load env vars, init logging
+    dotenv().ok();
     env_logger::init();
 
     // Load config

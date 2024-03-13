@@ -74,6 +74,10 @@ mod tests {
         // Delete the story
         let rows_updated = story_repo.delete(story.id).await.unwrap();
         assert_eq!(rows_updated, 1);
+
+        // Assert story was deleted
+        let stories = story_repo.fetch_all(owner).await.unwrap();
+        assert!(stories.is_empty());
     }
 
     #[ignore]
@@ -114,11 +118,15 @@ mod tests {
         assert_eq!(task.status, Status::Complete);
 
         // Query tasks for story.
-        let tasks = task_repo.fetch_all(story_id).await.unwrap();
+        let tasks = task_repo.fetch_all(story_id.clone()).await.unwrap();
         assert_eq!(tasks.len(), 1);
 
         // Delete the task
         let updated_rows = task_repo.delete(task.id).await.unwrap();
         assert_eq!(updated_rows, 1);
+
+        // Assert task was deleted
+        let tasks = task_repo.fetch_all(story_id).await.unwrap();
+        assert!(tasks.is_empty());
     }
 }

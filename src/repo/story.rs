@@ -153,3 +153,46 @@ impl StoryRepo {
         Ok(delete_tasks_result.rows_affected() + delete_story_result.rows_affected())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::repo::tests;
+
+    use testcontainers::{clients::Cli, RunnableImage};
+    use testcontainers_modules::postgres::Postgres;
+
+    #[ignore]
+    #[tokio::test]
+    async fn integration_test() {
+        // Set up postgres test container backed repo
+        let docker = Cli::default();
+        let image = RunnableImage::from(Postgres::default()).with_tag("16-alpine");
+        let container = docker.run(image);
+        let pool = tests::setup_pg_pool(&container).await;
+
+        // Set up repo under test
+        let story_repo = StoryRepo::new(pool);
+
+        // Create story
+        let name = "Books To Read".to_string();
+        let owner = "github.com/carp-cobain".to_string();
+        let story = story_repo
+            .create(name.clone(), owner.clone())
+            .await
+            .unwrap();
+        assert_eq!(name, story.name);
+
+        // Query stories for owner
+        let stories = story_repo.fetch_all(owner.clone()).await.unwrap();
+        assert_eq!(stories.len(), 1);
+
+        // Delete the story
+        let rows_updated = story_repo.delete(story.id).await.unwrap();
+        assert_eq!(rows_updated, 1);
+
+        // Assert story was deleted
+        let stories = story_repo.fetch_all(owner).await.unwrap();
+        assert!(stories.is_empty());
+    }
+}

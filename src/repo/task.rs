@@ -152,3 +152,69 @@ impl TaskRepo {
         Ok(result.rows_affected())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        domain::Status,
+        repo::{tests, StoryRepo},
+    };
+    use std::sync::Arc;
+
+    use testcontainers::{clients::Cli, RunnableImage};
+    use testcontainers_modules::postgres::Postgres;
+
+    #[ignore]
+    #[tokio::test]
+    async fn integration_test() {
+        // Set up postgres test container backed repo
+        let docker = Cli::default();
+        let image = RunnableImage::from(Postgres::default()).with_tag("16-alpine");
+        let container = docker.run(image);
+        let pool = tests::setup_pg_pool(&container).await;
+        let story_repo = StoryRepo::new(Arc::clone(&pool));
+
+        // Set up repo under test
+        let task_repo = TaskRepo::new(Arc::clone(&pool));
+
+        // Set up a story to put tasks under
+        let name = "Books To Read".to_string();
+        let owner = "github.com/carp-cobain".to_string();
+        let story_id = story_repo
+            .create(name.clone(), owner.clone())
+            .await
+            .unwrap()
+            .id;
+
+        // Create task, ensuring complete flag is false
+        let task_name = "Suttree".to_string();
+        let task = task_repo
+            .create(story_id.clone(), task_name.clone())
+            .await
+            .unwrap();
+        assert_eq!(task.status, Status::Incomplete);
+
+        // Complete task
+        let task = task_repo
+            .update(task.id, task.name, Status::Complete)
+            .await
+            .unwrap();
+        assert_eq!(task.status, Status::Complete);
+
+        // Query tasks for story.
+        let tasks = task_repo.fetch_all(story_id.clone()).await.unwrap();
+        assert_eq!(tasks.len(), 1);
+
+        // Delete the task
+        let updated_rows = task_repo.delete(task.id).await.unwrap();
+        assert_eq!(updated_rows, 1);
+
+        // Assert task was deleted
+        let tasks = task_repo.fetch_all(story_id.clone()).await.unwrap();
+        assert!(tasks.is_empty());
+
+        // Cleanup
+        story_repo.delete(story_id).await.unwrap();
+    }
+}
